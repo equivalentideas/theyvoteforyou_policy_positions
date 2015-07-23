@@ -17,8 +17,6 @@ policies.each do |policy_data|
     provisional: policy_data['provisional'].to_s
   }
 
-  p policy
-
   # get the policy page for scraping
   agent = Mechanize.new
   page = agent.get("https://theyvoteforyou.org.au/policies/#{policy_data['id']}")
