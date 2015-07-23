@@ -30,6 +30,6 @@ policies.each do |policy_data|
   policy['division_count'] = page.search('.division-title').count
 
   # Write out to the sqlite database using scraperwiki library
-  p policy
+  p policy # for debugging, this should be too massive
   ScraperWiki.save_sqlite([:scrape_id], policy)
 end
