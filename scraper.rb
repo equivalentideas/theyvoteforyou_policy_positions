@@ -1,25 +1,37 @@
-# This is a template for a Ruby scraper on morph.io (https://morph.io)
-# including some code snippets below that you should find helpful
+require 'scraperwiki'
+require 'mechanize'
+require 'rest-client'
+require 'json'
 
-# require 'scraperwiki'
-# require 'mechanize'
-#
-# agent = Mechanize.new
-#
-# # Read in a page
-# page = agent.get("http://foo.com")
-#
-# # Find somehing on the page using css selectors
-# p page.at('div.content')
-#
-# # Write out to the sqlite database using scraperwiki library
-# ScraperWiki.save_sqlite(["name"], {"name" => "susan", "occupation" => "software developer"})
-#
-# # An arbitrary query against the database
-# ScraperWiki.select("* from data where 'name'='peter'")
+# get all the policies through the They Vote For You API 
+api_data = RestClient.get "https://theyvoteforyou.org.au/api/v1/policies.json?key=#{ENV['MORPH_MY_TVFY_KEY']}"
+policies = JSON.parse(api_data)
 
-# You don't have to do things with the Mechanize or ScraperWiki libraries.
-# You can use whatever gems you want: https://morph.io/documentation/ruby
-# All that matters is that your final data is written to an SQLite database
-# called "data.sqlite" in the current working directory which has at least a table
-# called "data".
+policies.each do |policy_data|
+  # Get the basic meta data from the API JSON
+  policy = {
+    name: policy_data['name'],
+    id: policy_data['id'],
+    datetime_scraped: DateTime.now.to_s,
+    scrape_id: (policy_data['id'].to_s + '_' + Date.today.to_s.gsub('-','')).to_s,
+    provisional: policy_data['provisional'].to_s
+  }
+
+  p policy
+
+  # get the policy page for scraping
+  agent = Mechanize.new
+  page = agent.get("https://theyvoteforyou.org.au/policies/#{policy_data['id']}")
+
+  # scrape the count for each position in the policy
+  page.search('.policy-comparision-block').each do |position|
+    policy[position.at('h3').attr('id').gsub('-','_').to_sym] = position.search('.member-item').count
+  end
+
+  # scrape the division count
+  policy['division_count'] = page.search('.division-title').count
+
+  # Write out to the sqlite database using scraperwiki library
+  p policy
+  ScraperWiki.save_sqlite([:scrape_id], policy)
+end
